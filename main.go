@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ezfroze/go_final_project/pkg/api"
 	"github.com/ezfroze/go_final_project/pkg/db"
 )
 
@@ -12,6 +13,7 @@ var dbFile = "scheduler.db"
 
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./web")))
+	api.Init()
 
 	PORT := os.Getenv("TODO_PORT")
 	TODO_DBFILE := os.Getenv("TODO_DBFILE")
