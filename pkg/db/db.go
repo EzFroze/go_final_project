@@ -31,13 +31,12 @@ func Init(dbFile string) error {
 		install = true
 	}
 
+	db, err = sql.Open("sqlite", dbFile)
+	if err != nil {
+		return err
+	}
+
 	if install {
-		db, err = sql.Open("sqlite", dbFile)
-
-		if err != nil {
-			return err
-		}
-
 		_, err = db.Exec(schema)
 		if err != nil {
 			return err
