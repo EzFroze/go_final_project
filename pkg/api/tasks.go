@@ -11,7 +11,9 @@ type TasksResp struct {
 }
 
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
-	tasks, err := db.Tasks(50) // в параметре максимальное количество записей
+	search := r.FormValue("search")
+
+	tasks, err := db.Tasks(50, search) // в параметре максимальное количество записей
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err)
 		return

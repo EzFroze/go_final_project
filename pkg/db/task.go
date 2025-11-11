@@ -1,8 +1,11 @@
 package db
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
+	"time"
 )
 
 type Task struct {
@@ -27,31 +30,55 @@ func AddTask(task *Task) (int64, error) {
 	return res.LastInsertId()
 }
 
-func Tasks(limit int) ([]*Task, error) {
+func Tasks(limit int, search string) ([]*Task, error) {
 	if db == nil {
 		return nil, errors.New("database is not initialized")
 	}
 
+	date, err := time.Parse("02.01.2006", search)
+	isDate := err == nil
+
 	var tasks []*Task
 
-	res, err := db.Query(`
-				SELECT id, date, title, comment, repeat 
-				FROM scheduler 
-				ORDER BY date ASC, id ASC 
-				LIMIT ?
-			`, limit)
-
-	if err != nil {
-		return nil, err
+	var query string
+	if isDate {
+		query = `SELECT id, date, title, comment, repeat
+                 FROM scheduler
+                 WHERE date = ?
+                 ORDER BY date ASC, id ASC
+                 LIMIT ?`
+	} else {
+		query = `SELECT id, date, title, comment, repeat
+                 FROM scheduler
+                 WHERE title LIKE ? OR comment LIKE ?
+                 ORDER BY date ASC, id ASC
+                 LIMIT ?`
 	}
-	defer res.Close()
 
-	for res.Next() {
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare query: %v", err)
+	}
+	defer stmt.Close()
+
+	var rows *sql.Rows
+	if isDate {
+		rows, err = stmt.Query(date.Format("20060102"), limit)
+	} else {
+		searchParam := "%" + search + "%"
+		rows, err = stmt.Query(searchParam, searchParam, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
 		var (
 			id int64
 			t  Task
 		)
-		err = res.Scan(&id, &t.Date, &t.Title, &t.Comment, &t.Repeat)
+		err = rows.Scan(&id, &t.Date, &t.Title, &t.Comment, &t.Repeat)
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +86,7 @@ func Tasks(limit int) ([]*Task, error) {
 		tasks = append(tasks, &t)
 	}
 
-	if err = res.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
