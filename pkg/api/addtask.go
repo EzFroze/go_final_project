@@ -11,15 +11,6 @@ import (
 	"github.com/ezfroze/go_final_project/pkg/db"
 )
 
-func taskHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		addTaskHandler(w, r)
-	default:
-		writeJSONError(w, http.StatusMethodNotAllowed, errors.New("method not allowed"))
-	}
-}
-
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		writeJSONError(w, http.StatusBadRequest, errors.New("empty request body"))

@@ -2,14 +2,15 @@ package db
 
 import (
 	"errors"
+	"strconv"
 )
 
 type Task struct {
-	ID      int64  `db:"id" json:"id"`
-	Date    string `db:"date" json:"date"`
-	Title   string `db:"title" json:"title"`
-	Comment string `db:"comment" json:"comment"`
-	Repeat  string `db:"repeat" json:"repeat"`
+	ID      string `json:"id"`
+	Date    string `json:"date"`
+	Title   string `json:"title"`
+	Comment string `json:"comment"`
+	Repeat  string `json:"repeat"`
 }
 
 func AddTask(task *Task) (int64, error) {
@@ -24,4 +25,47 @@ func AddTask(task *Task) (int64, error) {
 	}
 
 	return res.LastInsertId()
+}
+
+func Tasks(limit int) ([]*Task, error) {
+	if db == nil {
+		return nil, errors.New("database is not initialized")
+	}
+
+	var tasks []*Task
+
+	res, err := db.Query(`
+				SELECT id, date, title, comment, repeat 
+				FROM scheduler 
+				ORDER BY date ASC, id ASC 
+				LIMIT ?
+			`, limit)
+
+	if err != nil {
+		return nil, err
+	}
+	defer res.Close()
+
+	for res.Next() {
+		var (
+			id int64
+			t  Task
+		)
+		err = res.Scan(&id, &t.Date, &t.Title, &t.Comment, &t.Repeat)
+		if err != nil {
+			return nil, err
+		}
+		t.ID = strconv.FormatInt(id, 10)
+		tasks = append(tasks, &t)
+	}
+
+	if err = res.Err(); err != nil {
+		return nil, err
+	}
+
+	if tasks == nil {
+		return []*Task{}, err
+	}
+
+	return tasks, nil
 }
