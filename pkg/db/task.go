@@ -151,3 +151,56 @@ func UpdateTask(task *Task) error {
 	}
 	return nil
 }
+
+func DeleteTask(id string) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	query := `DELETE FROM scheduler WHERE id = ?`
+	res, err := db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		return fmt.Errorf(`incorrect id for deleting task`)
+	}
+
+	return nil
+}
+
+func UpdateTaskDate(id, nextDate string) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	if id == "" {
+		return errors.New("task id is empty")
+	}
+
+	if nextDate == "" {
+		return errors.New("task next date is empty")
+	}
+
+	query := `UPDATE scheduler SET date = :date WHERE id = :id`
+
+	res, err := db.Exec(query, sql.Named("date", nextDate), sql.Named("id", id))
+	if err != nil {
+		return err
+	}
+	// метод RowsAffected() возвращает количество записей к которым
+	// был применена SQL команда
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf(`incorrect id for updating task`)
+	}
+	return nil
+}
