@@ -96,3 +96,58 @@ func Tasks(limit int, search string) ([]*Task, error) {
 
 	return tasks, nil
 }
+
+func GetTask(id string) (*Task, error) {
+	var task Task
+	if db == nil {
+		return nil, errors.New("database is not initialized")
+	}
+
+	err := db.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?", id).
+		Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+func UpdateTask(task *Task) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	if task.ID == "" {
+		return errors.New("task id is empty")
+	}
+
+	query :=
+		`UPDATE scheduler 
+		SET title = :title,
+		    comment = :comment,
+		    repeat = :repeat,
+		    date = :date
+		WHERE id = :id`
+
+	res, err := db.Exec(query,
+		sql.Named("title", &task.Title),
+		sql.Named("comment", &task.Comment),
+		sql.Named("repeat", &task.Repeat),
+		sql.Named("date", &task.Date),
+		sql.Named("id", &task.ID),
+	)
+	if err != nil {
+		return err
+	}
+	// метод RowsAffected() возвращает количество записей к которым
+	// был применена SQL команда
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf(`incorrect id for updating task`)
+	}
+	return nil
+}

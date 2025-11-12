@@ -11,6 +11,10 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		addTaskHandler(w, r)
+	case http.MethodGet:
+		getTask(w, r)
+	case http.MethodPut:
+		updateTask(w, r)
 	default:
 		writeJSONError(w, http.StatusMethodNotAllowed, errors.New("method not allowed"))
 	}
