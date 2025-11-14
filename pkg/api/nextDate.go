@@ -54,38 +54,59 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 	}
 
 	if parsedRepeat.rType == WEEKDAY {
-		var dayOfWeek [8]bool
+		var dayOfWeek [7]bool
 		for _, day := range parsedRepeat.days {
-			dayOfWeek[day] = true
+			idx := day % 7 // 7 -> 0 (воскресенье), 1..6 -> 1..6
+			dayOfWeek[idx] = true
 		}
 
 		for {
-			parsedDate = parsedDate.AddDate(0, 0, 1)
-			if afterNow(parsedDate, now) && dayOfWeek[parsedDate.Weekday()] {
-				break
+			if afterNow(parsedDate, now) {
+				weekdayIdx := int(parsedDate.Weekday())
+				if dayOfWeek[weekdayIdx] {
+					break
+				}
 			}
+			parsedDate = parsedDate.AddDate(0, 0, 1)
 		}
 	}
 
 	if parsedRepeat.rType == MONTH {
 		var dayOfMonth [32]bool
+		lastDay := false
+		secondLastDay := false
 		var months [13]bool
+		allMonths := len(parsedRepeat.months) == 0
+
 		for _, day := range parsedRepeat.days {
-			dayOfMonth[day] = true
+			switch {
+			case day > 0:
+				dayOfMonth[day] = true
+			case day == -1:
+				lastDay = true
+			case day == -2:
+				secondLastDay = true
+			}
 		}
-		for _, month := range parsedRepeat.months {
-			months[month] = true
+
+		if allMonths {
+			for i := 1; i <= 12; i++ {
+				months[i] = true
+			}
+		} else {
+			for _, month := range parsedRepeat.months {
+				months[month] = true
+			}
 		}
 
 		for {
-			parsedDate = parsedDate.AddDate(0, 0, 1)
 			if afterNow(parsedDate, now) {
-				day := parsedDate.Day()
-				month := parsedDate.Month()
-				if dayOfMonth[day] && months[month] {
+				monthIdx := parsedDate.Month()
+				if months[monthIdx] && validMonthlyDate(parsedDate, &dayOfMonth, lastDay, secondLastDay) {
 					break
 				}
 			}
+			parsedDate = parsedDate.AddDate(0, 0, 1)
 		}
 	}
 
@@ -105,7 +126,10 @@ func parseRepeat(repeat string) (*Parsed, error) {
 		return result, errors.New("repeat is empty")
 	}
 
-	params := strings.Split(repeat, " ")
+	params := strings.Fields(repeat)
+	if len(params) == 0 {
+		return result, errors.New("repeat is empty")
+	}
 	rType := params[0]
 	rParams := params[1:]
 
@@ -116,7 +140,7 @@ func parseRepeat(repeat string) (*Parsed, error) {
 	// d - day - max 400
 	// example - d 1, d 7, d 60
 	if rType == DAY {
-		if len(rParams) == 0 || len(rParams) > 1 {
+		if len(rParams) != 1 {
 			return result, errors.New("invalid day repeat params")
 		}
 
@@ -125,7 +149,7 @@ func parseRepeat(repeat string) (*Parsed, error) {
 			return result, err
 		}
 
-		if days < 0 || days > 400 {
+		if days <= 0 || days > 400 {
 			return result, errors.New("invalid day repeat params")
 		}
 		result.days = []int{days}
@@ -140,7 +164,7 @@ func parseRepeat(repeat string) (*Parsed, error) {
 	// w - weak
 	// example - w 7; w 1,4,5; w 2,3;
 	if rType == WEEKDAY {
-		if len(rParams) == 0 {
+		if len(rParams) != 1 {
 			return result, errors.New("invalid weekday repeat params")
 		}
 
@@ -150,9 +174,13 @@ func parseRepeat(repeat string) (*Parsed, error) {
 			return result, errors.New("invalid weekday repeat params")
 		}
 
-		parsedDaysArr := []int{}
+		parsedDaysArr := make([]int, 0, len(daysArr))
 
 		for _, day := range daysArr {
+			day = strings.TrimSpace(day)
+			if day == "" {
+				return result, errors.New("invalid weekday repeat params")
+			}
 			count, err := strconv.Atoi(day)
 			if err != nil {
 				return result, err
@@ -175,35 +203,57 @@ func parseRepeat(repeat string) (*Parsed, error) {
 		if len(rParams) == 0 || len(rParams) > 2 {
 			return result, errors.New("invalid month repeat params")
 		}
-		daysArr := strings.Split(rParams[0], ",")
-		monthsArr := strings.Split(rParams[1], ",")
 
-		parsedDaysArr := []int{}
+		daysArr := strings.Split(rParams[0], ",")
+		if len(daysArr) == 0 {
+			return result, errors.New("invalid month repeat params")
+		}
+		monthsArr := make([]string, 0)
+
+		if len(rParams) == 2 {
+			monthsArr = strings.Split(rParams[1], ",")
+		}
+
+		parsedDaysArr := make([]int, 0, len(daysArr))
 		for _, day := range daysArr {
+			day = strings.TrimSpace(day)
+			if day == "" {
+				return result, errors.New("invalid month repeat params")
+			}
 			count, err := strconv.Atoi(day)
 			if err != nil {
 				return result, err
 			}
 
-			if count < -31 || count > 31 {
+			if count == 0 || count > 31 {
+				return result, errors.New("invalid month repeat params")
+			}
+
+			if count < 0 && count != -1 && count != -2 {
 				return result, errors.New("invalid month repeat params")
 			}
 
 			parsedDaysArr = append(parsedDaysArr, count)
 		}
 
-		parsedMonthsArr := []int{}
-		for _, month := range monthsArr {
-			count, err := strconv.Atoi(month)
-			if err != nil {
-				return result, err
-			}
+		parsedMonthsArr := make([]int, 0, len(monthsArr))
+		if len(monthsArr) != 0 {
+			for _, month := range monthsArr {
+				month = strings.TrimSpace(month)
+				if month == "" {
+					return result, errors.New("invalid month repeat params")
+				}
+				count, err := strconv.Atoi(month)
+				if err != nil {
+					return result, err
+				}
 
-			if count < 1 || count > 12 {
-				return result, errors.New("invalid month repeat params")
-			}
+				if count < 1 || count > 12 {
+					return result, errors.New("invalid month repeat params")
+				}
 
-			parsedMonthsArr = append(parsedMonthsArr, count)
+				parsedMonthsArr = append(parsedMonthsArr, count)
+			}
 		}
 
 		result.months = parsedMonthsArr
@@ -217,6 +267,28 @@ func parseRepeat(repeat string) (*Parsed, error) {
 
 func afterNow(date, now time.Time) bool {
 	return date.After(now)
+}
+
+func isLastDayOfMonth(date time.Time) bool {
+	return date.AddDate(0, 0, 1).Month() != date.Month()
+}
+
+func isSecondLastDayOfMonth(date time.Time) bool {
+	return date.AddDate(0, 0, 2).Month() != date.Month()
+}
+
+func validMonthlyDate(date time.Time, dayOfMonth *[32]bool, lastDay, secondLastDay bool) bool {
+	day := date.Day()
+	if dayOfMonth[day] {
+		return true
+	}
+	if lastDay && isLastDayOfMonth(date) {
+		return true
+	}
+	if secondLastDay && isSecondLastDayOfMonth(date) {
+		return true
+	}
+	return false
 }
 
 func nextDateHandler(w http.ResponseWriter, req *http.Request) {
