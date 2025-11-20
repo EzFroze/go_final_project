@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -9,31 +10,32 @@ import (
 	"github.com/ezfroze/go_final_project/pkg/db"
 )
 
-var dbFile = "scheduler.db"
+var dbFileDefault = "scheduler.db"
 
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./web")))
 	api.Init()
 
-	PORT := os.Getenv("TODO_PORT")
-	TODO_DBFILE := os.Getenv("TODO_DBFILE")
+	port := os.Getenv("TODO_PORT")
+	dbfile := os.Getenv("TODO_DBFILE")
 
-	if PORT == "" {
-		PORT = "7540"
+	if port == "" {
+		port = "7540"
 	}
 
-	if TODO_DBFILE == "" {
-		TODO_DBFILE = dbFile
+	if dbfile == "" {
+		dbfile = dbFileDefault
 	}
 
-	err := db.Init(TODO_DBFILE)
+	database, err := db.Init(dbfile)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+	defer database.Close()
 
-	err = http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

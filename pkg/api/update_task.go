@@ -14,7 +14,6 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, errors.New("empty request body"))
 		return
 	}
-	defer r.Body.Close()
 
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {

@@ -25,7 +25,7 @@ var repeatTypes = []string{WEEKDAY, DAY, MONTH, YEAR}
 // NextDate(now, "20240116", "m 16,5") = 20240205
 // NextDate(now, "20240201", "m -1,18") = 20240218
 func NextDate(now time.Time, dstart string, repeat string) (string, error) {
-	parsedDate, err := time.Parse(DATEFORMAT, dstart)
+	parsedDate, err := time.Parse(Dateformat, dstart)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +110,7 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 		}
 	}
 
-	return parsedDate.Format(DATEFORMAT), nil
+	return parsedDate.Format(Dateformat), nil
 }
 
 type Parsed struct {
@@ -299,7 +299,7 @@ func nextDateHandler(w http.ResponseWriter, req *http.Request) {
 	var parsedNow time.Time
 	if nowStr != "" {
 		var err error
-		parsedNow, err = time.Parse(DATEFORMAT, nowStr)
+		parsedNow, err = time.Parse(Dateformat, nowStr)
 		if err != nil {
 			http.Error(w, "incorrect now", http.StatusBadRequest)
 			return

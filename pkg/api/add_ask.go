@@ -16,7 +16,6 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, errors.New("empty request body"))
 		return
 	}
-	defer r.Body.Close()
 
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
@@ -49,13 +48,13 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 func checkDate(task *db.Task) error {
 	now := time.Now()
-	today := now.Format(DATEFORMAT)
+	today := now.Format(Dateformat)
 
 	if task.Date == "" {
 		task.Date = today
 	}
 
-	if _, err := time.Parse(DATEFORMAT, task.Date); err != nil {
+	if _, err := time.Parse(Dateformat, task.Date); err != nil {
 		return err
 	}
 

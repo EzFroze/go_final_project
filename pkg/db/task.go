@@ -17,10 +17,6 @@ type Task struct {
 }
 
 func AddTask(task *Task) (int64, error) {
-	if db == nil {
-		return 0, errors.New("database is not initialized")
-	}
-
 	res, err := db.Exec(`INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`,
 		task.Date, task.Title, task.Comment, task.Repeat)
 	if err != nil {
@@ -31,10 +27,6 @@ func AddTask(task *Task) (int64, error) {
 }
 
 func Tasks(limit int, search string) ([]*Task, error) {
-	if db == nil {
-		return nil, errors.New("database is not initialized")
-	}
-
 	date, err := time.Parse("02.01.2006", search)
 	isDate := err == nil
 
@@ -99,9 +91,6 @@ func Tasks(limit int, search string) ([]*Task, error) {
 
 func GetTask(id string) (*Task, error) {
 	var task Task
-	if db == nil {
-		return nil, errors.New("database is not initialized")
-	}
 
 	err := db.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?", id).
 		Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
@@ -114,10 +103,6 @@ func GetTask(id string) (*Task, error) {
 }
 
 func UpdateTask(task *Task) error {
-	if db == nil {
-		return errors.New("database is not initialized")
-	}
-
 	if task.ID == "" {
 		return errors.New("task id is empty")
 	}
@@ -153,10 +138,6 @@ func UpdateTask(task *Task) error {
 }
 
 func DeleteTask(id string) error {
-	if db == nil {
-		return errors.New("database is not initialized")
-	}
-
 	query := `DELETE FROM scheduler WHERE id = ?`
 	res, err := db.Exec(query, id)
 	if err != nil {
@@ -175,10 +156,6 @@ func DeleteTask(id string) error {
 }
 
 func UpdateTaskDate(id, nextDate string) error {
-	if db == nil {
-		return errors.New("database is not initialized")
-	}
-
 	if id == "" {
 		return errors.New("task id is empty")
 	}

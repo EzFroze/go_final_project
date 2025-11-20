@@ -20,7 +20,6 @@ func signInHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, errors.New("empty request body"))
 		return
 	}
-	defer r.Body.Close()
 
 	var requestBody RequestBody
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {

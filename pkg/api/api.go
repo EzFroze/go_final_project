@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-const DATEFORMAT = "20060102"
+const Dateformat = "20060102"
 
 func taskHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
