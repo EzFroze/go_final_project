@@ -34,6 +34,8 @@ func main() {
 	}
 	defer database.Close()
 
+	log.Println("Starting server on port " + port)
+
 	err = http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 	if err != nil {
 		log.Fatal(err)
