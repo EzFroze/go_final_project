@@ -1,0 +1,183 @@
+package db
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+type Task struct {
+	ID      string `json:"id"`
+	Date    string `json:"date"`
+	Title   string `json:"title"`
+	Comment string `json:"comment"`
+	Repeat  string `json:"repeat"`
+}
+
+func AddTask(task *Task) (int64, error) {
+	res, err := db.Exec(`INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`,
+		task.Date, task.Title, task.Comment, task.Repeat)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.LastInsertId()
+}
+
+func Tasks(limit int, search string) ([]*Task, error) {
+	date, err := time.Parse("02.01.2006", search)
+	isDate := err == nil
+
+	var tasks []*Task
+
+	var query string
+	if isDate {
+		query = `SELECT id, date, title, comment, repeat
+                 FROM scheduler
+                 WHERE date = ?
+                 ORDER BY date ASC, id ASC
+                 LIMIT ?`
+	} else {
+		query = `SELECT id, date, title, comment, repeat
+                 FROM scheduler
+                 WHERE title LIKE ? OR comment LIKE ?
+                 ORDER BY date ASC, id ASC
+                 LIMIT ?`
+	}
+
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare query: %v", err)
+	}
+	defer stmt.Close()
+
+	var rows *sql.Rows
+	if isDate {
+		rows, err = stmt.Query(date.Format("20060102"), limit)
+	} else {
+		searchParam := "%" + search + "%"
+		rows, err = stmt.Query(searchParam, searchParam, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id int64
+			t  Task
+		)
+		err = rows.Scan(&id, &t.Date, &t.Title, &t.Comment, &t.Repeat)
+		if err != nil {
+			return nil, err
+		}
+		t.ID = strconv.FormatInt(id, 10)
+		tasks = append(tasks, &t)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if tasks == nil {
+		return []*Task{}, err
+	}
+
+	return tasks, nil
+}
+
+func GetTask(id string) (*Task, error) {
+	var task Task
+
+	err := db.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?", id).
+		Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+func UpdateTask(task *Task) error {
+	if task.ID == "" {
+		return errors.New("task id is empty")
+	}
+
+	query :=
+		`UPDATE scheduler 
+		SET title = :title,
+		    comment = :comment,
+		    repeat = :repeat,
+		    date = :date
+		WHERE id = :id`
+
+	res, err := db.Exec(query,
+		sql.Named("title", &task.Title),
+		sql.Named("comment", &task.Comment),
+		sql.Named("repeat", &task.Repeat),
+		sql.Named("date", &task.Date),
+		sql.Named("id", &task.ID),
+	)
+	if err != nil {
+		return err
+	}
+	// метод RowsAffected() возвращает количество записей к которым
+	// был применена SQL команда
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf(`incorrect id for updating task`)
+	}
+	return nil
+}
+
+func DeleteTask(id string) error {
+	query := `DELETE FROM scheduler WHERE id = ?`
+	res, err := db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		return fmt.Errorf(`incorrect id for deleting task`)
+	}
+
+	return nil
+}
+
+func UpdateTaskDate(id, nextDate string) error {
+	if id == "" {
+		return errors.New("task id is empty")
+	}
+
+	if nextDate == "" {
+		return errors.New("task next date is empty")
+	}
+
+	query := `UPDATE scheduler SET date = :date WHERE id = :id`
+
+	res, err := db.Exec(query, sql.Named("date", nextDate), sql.Named("id", id))
+	if err != nil {
+		return err
+	}
+	// метод RowsAffected() возвращает количество записей к которым
+	// был применена SQL команда
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf(`incorrect id for updating task`)
+	}
+	return nil
+}
